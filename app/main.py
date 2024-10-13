@@ -1,3 +1,8 @@
+class VisibilityError(Exception):
+    def __init__(self) -> None:
+        self.message = "The ship isn't field's area"
+        super().__init__(self.message)
+
 class Deck:
     def __init__(
             self,
@@ -62,8 +67,13 @@ class Battleship:
         # Its keys are tuples - the coordinates of the non-empty cells,
         # A value for each cell is a reference to the ship
         # which is located in it
-        self.field = {coords: Ship(coords[0], coords[1]) for coords in ships}
-
+        self.ships = {coords: Ship(coords[0], coords[1]) for coords in ships}
+        self.field = [
+            (i, j)
+            for i in range(10)
+            for j in range(10)
+        ]
+        self._validate_field()
     def fire(self, location: tuple) -> str:
         # This function should check whether the location
         # is a key in the `self.field`
@@ -72,7 +82,7 @@ class Battleship:
 
         current_ship = None
 
-        for ship in self.field.values():
+        for ship in self.ships.values():
             if ship.is_drowned:
                 continue
             deck = ship.get_deck(location[0], location[1])
@@ -84,6 +94,102 @@ class Battleship:
         if current_ship and current_ship.is_drowned:
             return "Sunk!"
         return "Miss!"
+
+    def print_field(self) -> None:
+        decks = []
+        for ship in self.ships.values():
+            if ship.is_drowned:
+                for deck in ship.decks:
+                    deck.symbol = "x"
+                    decks.append(deck)
+            else:
+                for deck in ship.decks:
+                    if deck.is_alive:
+                        deck.symbol = "\u25A1"
+                    if not deck.is_alive:
+                        deck.symbol = "*"
+                    decks.append(deck)
+        symbols_list = []
+        is_found = False
+        for row, column in self.field:
+            for index, deck in enumerate(decks):
+                if deck.row == row and deck.column == column:
+                    symbols_list.append(deck.symbol)
+                    is_found = True
+                    break
+                if index == len(decks) - 1:
+                    is_found = False
+
+            if not is_found:
+                symbols_list.append("~")
+
+        symbols = ""
+        for index, symbol in enumerate(symbols_list):
+            if index % 10 == 0 and index != 0:
+                symbols += "\n"
+            symbols += f"{symbol}   "
+
+        print(symbols)
+
+    def _validate_field(self) -> None:
+        coords = self.ships.keys()
+
+        for x, y in coords:
+            condition = (0 <= x[0] < 10 and
+                         0 <= x[1] < 10 and
+                         0 <= y[0] < 10 and
+                         0 <= y[1] < 10)
+            if not condition:
+                raise VisibilityError
+
+        assert len(coords) == 10, "The total number of the ships should be 10"
+        one_decks = 0
+        two_decks = 0
+        three_decks = 0
+        four_decks = 0
+        ships = [ship.decks for ship in self.ships.values()]
+        for ship in ships:
+            if len(ship) == 2:
+                if (ship[0].row == ship[1].row and
+                        ship[0].column == ship[1].column):
+                    one_decks += 1
+                    continue
+                two_decks += 1
+            if len(ship) == 3:
+                three_decks += 1
+            if len(ship) == 4:
+                four_decks += 1
+        assert one_decks == 4, "There should be 4 single-deck ships"
+        assert two_decks == 3, "There should be 3 double-deck ships"
+        assert three_decks == 2, "There should be 2 three-deck ships"
+        assert four_decks == 1, "There should be 1 four-deck ship"
+        invalid_cells = []
+        for coord in coords:
+            cells = self.get_invalid_cells_for_one_ship(coord)
+            invalid_cells += cells
+
+
+
+    def get_invalid_cells_for_one_ship(
+            self,
+            coord: tuple
+    ) -> list[tuple]:
+        row_range = (coord[0][0] - 1, coord[1][0] + 2)
+        column_range = (coord[0][1] - 1, coord[1][1] + 2)
+
+        start_row, end_row = row_range
+        start_column, end_column = column_range
+
+        current_ship = self.ships[coord]
+        print(current_ship)
+
+        result = []
+
+        for i in range(start_row, end_row):
+            for j in range(start_column, end_column):
+                result.append((i, j),)
+
+        return result
 
     def __repr__(self) -> str:
         return str(self.__dict__)
@@ -103,7 +209,9 @@ battle_ship = Battleship(
     ]
 )
 
-print(battle_ship.fire((0, 3)))
+
 print(battle_ship.fire((0, 2)))
 print(battle_ship.fire((0, 1)))
 print(battle_ship.fire((0, 0)))
+
+battle_ship.print_field()
