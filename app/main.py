@@ -75,9 +75,9 @@ class Battleship:
         # which is located in it
         self.ships = {coords: Ship(coords[0], coords[1]) for coords in ships}
         self.field = [
-            (i, j)
-            for i in range(10)
-            for j in range(10)
+            (row, column)
+            for row in range(10)
+            for column in range(10)
         ]
         self._validate_field()
 
