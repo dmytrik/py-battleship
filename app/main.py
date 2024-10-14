@@ -3,11 +3,12 @@ class VisibilityError(Exception):
         self.message = "The ship isn't field's area"
         super().__init__(self.message)
 
+
 class Deck:
     def __init__(
             self,
             row: int,
-            column,
+            column: int,
             is_alive: bool = True
     ) -> None:
         self.row = row
@@ -29,14 +30,15 @@ class Ship:
         self.decks = self.create_decks(start, end)
         self.is_drowned = is_drowned
 
-    def get_deck(self, row, column) -> Deck | None:
+    def get_deck(self, row: int, column: int) -> Deck | None:
         # Find the corresponding deck in the list
         decks = self.decks
         for deck in decks:
             if deck.row == row and deck.column == column:
                 self.fire(row, column)
                 return deck
-    def fire(self, row, column) -> None:
+
+    def fire(self, row: int, column: int) -> None:
         # Change the `is_alive` status of the deck
         # And update the `is_drowned` value if it's needed
         decks = self.decks
@@ -50,6 +52,9 @@ class Ship:
     @staticmethod
     def create_decks(start: tuple, end: tuple) -> list[Deck]:
         result = []
+        if start == end:
+            result.append(Deck(start[0], start[1]))
+            return result
         if start[0] == end[0]:
             for i in range(start[1], end[1] + 1):
                 result.append(Deck(start[0], i))
@@ -61,8 +66,9 @@ class Ship:
     def __repr__(self) -> str:
         return str(self.__dict__)
 
+
 class Battleship:
-    def __init__(self, ships):
+    def __init__(self, ships: list[tuple]) -> None:
         # Create a dict `self.field`.
         # Its keys are tuples - the coordinates of the non-empty cells,
         # A value for each cell is a reference to the ship
@@ -74,6 +80,7 @@ class Battleship:
             for j in range(10)
         ]
         self._validate_field()
+
     def fire(self, location: tuple) -> str:
         # This function should check whether the location
         # is a key in the `self.field`
@@ -134,11 +141,11 @@ class Battleship:
     def _validate_field(self) -> None:
         coords = self.ships.keys()
 
-        for x, y in coords:
-            condition = (0 <= x[0] < 10 and
-                         0 <= x[1] < 10 and
-                         0 <= y[0] < 10 and
-                         0 <= y[1] < 10)
+        for x_, y_ in coords:
+            condition = (0 <= x_[0] < 10
+                         and 0 <= x_[1] < 10
+                         and 0 <= y_[0] < 10
+                         and 0 <= y_[1] < 10)
             if not condition:
                 raise VisibilityError
 
@@ -148,12 +155,11 @@ class Battleship:
         three_decks = 0
         four_decks = 0
         ships = [ship.decks for ship in self.ships.values()]
+
         for ship in ships:
+            if len(ship) == 1:
+                one_decks += 1
             if len(ship) == 2:
-                if (ship[0].row == ship[1].row and
-                        ship[0].column == ship[1].column):
-                    one_decks += 1
-                    continue
                 two_decks += 1
             if len(ship) == 3:
                 three_decks += 1
@@ -163,14 +169,23 @@ class Battleship:
         assert two_decks == 3, "There should be 3 double-deck ships"
         assert three_decks == 2, "There should be 2 three-deck ships"
         assert four_decks == 1, "There should be 1 four-deck ship"
+
         invalid_cells = []
         for coord in coords:
-            cells = self.get_invalid_cells_for_one_ship(coord)
+            cells = self._get_invalid_cells_for_one_ship(coord)
             invalid_cells += cells
 
+        invalid_cells = set(invalid_cells)
+        decks = sum([ship.decks for ship in self.ships.values()], [])
+        for cell in invalid_cells:
+            for deck in decks:
+                if cell[0] == deck.row and cell[1] == deck.column:
+                    raise Exception("ships shouldn't be located in"
+                                    " the neighboring cells"
+                                    " (even if cells are neighbors"
+                                    " by diagonal)")
 
-
-    def get_invalid_cells_for_one_ship(
+    def _get_invalid_cells_for_one_ship(
             self,
             coord: tuple
     ) -> list[tuple]:
@@ -180,38 +195,20 @@ class Battleship:
         start_row, end_row = row_range
         start_column, end_column = column_range
 
-        current_ship = self.ships[coord]
-        print(current_ship)
+        current_ship = self.ships[coord].decks
 
-        result = []
+        area_cells = []
 
-        for i in range(start_row, end_row):
-            for j in range(start_column, end_column):
-                result.append((i, j),)
+        for row in range(start_row, end_row):
+            for column in range(start_column, end_column):
+                area_cells.append((row, column))
 
-        return result
+        for deck in current_ship:
+            for cell in area_cells:
+                if cell[0] == deck.row and cell[1] == deck.column:
+                    area_cells.remove(cell)
+
+        return area_cells
 
     def __repr__(self) -> str:
         return str(self.__dict__)
-
-battle_ship = Battleship(
-    ships=[
-        ((0, 0), (0, 3)),
-        ((0, 5), (0, 6)),
-        ((0, 8), (0, 9)),
-        ((2, 0), (4, 0)),
-        ((2, 4), (2, 6)),
-        ((2, 8), (2, 9)),
-        ((9, 9), (9, 9)),
-        ((7, 7), (7, 7)),
-        ((7, 9), (7, 9)),
-        ((9, 7), (9, 7)),
-    ]
-)
-
-
-print(battle_ship.fire((0, 2)))
-print(battle_ship.fire((0, 1)))
-print(battle_ship.fire((0, 0)))
-
-battle_ship.print_field()
