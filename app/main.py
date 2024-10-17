@@ -9,11 +9,13 @@ class Deck:
             self,
             row: int,
             column: int,
-            is_alive: bool = True
+            is_alive: bool = True,
+            symbol: str = "\u25A1"
     ) -> None:
         self.row = row
         self.column = column
         self.is_alive = is_alive
+        self.symbol = symbol
 
     def __repr__(self) -> str:
         return str(self.__dict__)
@@ -24,7 +26,7 @@ class Ship:
             self,
             start: tuple,
             end: tuple,
-            is_drowned: bool = False
+            is_drowned: bool = False,
     ) -> None:
         # Create decks and save them to a list `self.decks`
         self.decks = self.create_decks(start, end)
@@ -32,6 +34,12 @@ class Ship:
 
     def get_deck(self, row: int, column: int) -> Deck | None:
         # Find the corresponding deck in the list
+        """
+        This method searches for a deck by coordinate
+        :param row:
+        :param column:
+        :return:
+        """
         decks = self.decks
         for deck in decks:
             if deck.row == row and deck.column == column:
@@ -41,26 +49,45 @@ class Ship:
     def fire(self, row: int, column: int) -> None:
         # Change the `is_alive` status of the deck
         # And update the `is_drowned` value if it's needed
+        """
+        This method exchanges state decks or ships
+        :param row:
+        :param column:
+        :return:
+        """
         decks = self.decks
         for deck in decks:
             if deck.row == row and deck.column == column:
                 deck.is_alive = False
+                deck.symbol = "*"
         decks_values = [deck.is_alive for deck in self.decks]
         if not any(decks_values):
             self.is_drowned = True
+            for deck in self.decks:
+                deck.symbol = "x"
 
     @staticmethod
     def create_decks(start: tuple, end: tuple) -> list[Deck]:
+        """
+        This metod creates ship's decks
+        :param start:
+        :param end:
+        :return:
+        """
         result = []
+        row_start = start[0]
+        row_end = end[0]
+        column_start = start[1]
+        column_end = end[1]
         if start == end:
-            result.append(Deck(start[0], start[1]))
+            result.append(Deck(row_start, column_start))
             return result
-        if start[0] == end[0]:
-            for i in range(start[1], end[1] + 1):
-                result.append(Deck(start[0], i))
-        if start[1] == end[1]:
-            for i in range(start[0], end[0] + 1):
-                result.append(Deck(i, start[1]))
+        if row_start == row_end:
+            for i in range(column_start, column_end + 1):
+                result.append(Deck(row_start, i))
+        if column_start == column_end:
+            for i in range(row_start, row_end + 1):
+                result.append(Deck(i, column_start))
         return result
 
     def __repr__(self) -> str:
@@ -86,6 +113,11 @@ class Battleship:
         # is a key in the `self.field`
         # If it is, then it should check if this cell is the last alive
         # in the ship or not.
+        """
+        This method fires at the ship for transmitted location
+        :param location:
+        :return:
+        """
 
         current_ship = None
 
@@ -103,77 +135,55 @@ class Battleship:
         return "Miss!"
 
     def print_field(self) -> None:
-        decks = []
-        for ship in self.ships.values():
-            if ship.is_drowned:
-                for deck in ship.decks:
-                    deck.symbol = "x"
-                    decks.append(deck)
-            else:
-                for deck in ship.decks:
-                    if deck.is_alive:
-                        deck.symbol = "\u25A1"
-                    if not deck.is_alive:
-                        deck.symbol = "*"
-                    decks.append(deck)
-        symbols_list = []
-        is_found = False
-        for row, column in self.field:
-            for index, deck in enumerate(decks):
-                if deck.row == row and deck.column == column:
-                    symbols_list.append(deck.symbol)
-                    is_found = True
-                    break
-                if index == len(decks) - 1:
-                    is_found = False
+        """
+        This method prints all cells of the field line by line.
+        :return:
+        """
+        sea = [["~"] * 10 for i in range(10)]
+        decks = sum([ship.decks for ship in self.ships.values()], [])
 
-            if not is_found:
-                symbols_list.append("~")
+        for deck in decks:
+            row, column = deck.row, deck.column
+            sea[row][column] = deck.symbol
 
-        symbols = ""
-        for index, symbol in enumerate(symbols_list):
-            if index % 10 == 0 and index != 0:
-                symbols += "\n"
-            symbols += f"{symbol}   "
-
-        print(symbols)
+        for row in sea:
+            print("    ".join(row))
 
     def _validate_field(self) -> None:
+        """
+        This method checks ships for their count and their correct placement
+        :return:
+        """
         coords = self.ships.keys()
 
         for x_, y_ in coords:
-            condition = (0 <= x_[0] < 10
-                         and 0 <= x_[1] < 10
-                         and 0 <= y_[0] < 10
-                         and 0 <= y_[1] < 10)
+            condition = all((0 <= x_[0] < 10,
+                            0 <= x_[1] < 10,
+                            0 <= y_[0] < 10,
+                            0 <= y_[1] < 10))
             if not condition:
                 raise VisibilityError
 
         assert len(coords) == 10, "The total number of the ships should be 10"
-        one_decks = 0
-        two_decks = 0
-        three_decks = 0
-        four_decks = 0
-        ships = [ship.decks for ship in self.ships.values()]
 
-        for ship in ships:
-            if len(ship) == 1:
-                one_decks += 1
-            if len(ship) == 2:
-                two_decks += 1
-            if len(ship) == 3:
-                three_decks += 1
-            if len(ship) == 4:
-                four_decks += 1
-        assert one_decks == 4, "There should be 4 single-deck ships"
-        assert two_decks == 3, "There should be 3 double-deck ships"
-        assert three_decks == 2, "There should be 2 three-deck ships"
-        assert four_decks == 1, "There should be 1 four-deck ship"
+        ships = {
+            1: 0,
+            2: 0,
+            3: 0,
+            4: 0
+        }
+        for ship in self.ships.values():
+            ships[len(ship.decks)] += 1
 
-        invalid_cells = []
-        for coord in coords:
-            cells = self._get_invalid_cells_for_one_ship(coord)
-            invalid_cells += cells
+        assert ships[1] == 4, "There should be 4 single-deck ships"
+        assert ships[2] == 3, "There should be 3 double-deck ships"
+        assert ships[3] == 2, "There should be 2 three-deck ships"
+        assert ships[4] == 1, "There should be 1 four-deck ship"
+
+        invalid_cells = sum([
+            self._get_invalid_cells_for_one_ship(coord)
+            for coord in coords
+        ], [])
 
         invalid_cells = set(invalid_cells)
         decks = sum([ship.decks for ship in self.ships.values()], [])
@@ -189,6 +199,12 @@ class Battleship:
             self,
             coord: tuple
     ) -> list[tuple]:
+        """
+        This method find all cells around the ship
+        in which other ships can't be located
+        :param coord:
+        :return:
+        """
         row_range = (coord[0][0] - 1, coord[1][0] + 2)
         column_range = (coord[0][1] - 1, coord[1][1] + 2)
 
