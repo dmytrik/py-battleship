@@ -4,6 +4,14 @@ class VisibilityError(Exception):
         super().__init__(self.message)
 
 
+class LocationError(Exception):
+    def __init__(self) -> None:
+        self.message = ("Ships shouldn't be located in the "
+                        "neighboring cells (even if cells "
+                        "are neighbors by diagonal)")
+        super().__init__(self.message)
+
+
 class Deck:
     def __init__(
             self,
@@ -128,11 +136,12 @@ class Battleship:
             if deck:
                 current_ship = ship
 
-        if current_ship and not current_ship.is_drowned:
+        if not current_ship:
+            return "Miss!"
+        if any(deck.is_alive for deck in current_ship.decks):
             return "Hit!"
-        if current_ship and current_ship.is_drowned:
+        if not all(deck.is_alive for deck in current_ship.decks):
             return "Sunk!"
-        return "Miss!"
 
     def print_field(self) -> None:
         """
@@ -190,10 +199,7 @@ class Battleship:
         for cell in invalid_cells:
             for deck in decks:
                 if cell[0] == deck.row and cell[1] == deck.column:
-                    raise Exception("ships shouldn't be located in"
-                                    " the neighboring cells"
-                                    " (even if cells are neighbors"
-                                    " by diagonal)")
+                    raise LocationError
 
     def _get_invalid_cells_for_one_ship(
             self,
